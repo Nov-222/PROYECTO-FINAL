@@ -12,6 +12,7 @@ from google.auth.transport import requests as google_requests
 from core.database import get_auth_db
 from core.config import settings
 from modules.auth.models import User, Device
+import requests
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
 
@@ -130,37 +131,44 @@ def login(request: LoginRequest, response: Response, db: Session = Depends(get_a
 
 @router.post("/google")
 def google_auth(request: GoogleLoginRequest, response: Response, db: Session = Depends(get_auth_db)):
-    try:
-        idinfo = id_token.verify_oauth2_token(request.token, google_requests.Request(), settings.GOOGLE_CLIENT_ID)
-        email = idinfo['email']
-        name = idinfo.get('name', 'Usuario')
-        
-        user = db.query(User).filter(User.email == email).first()
-        
-        if not user:
-            raise HTTPException(status_code=404, detail="Cuenta de Google no registrada. Por favor completa tu registro con tu fecha de nacimiento.")
-        
-        active_devices = db.query(Device).filter(Device.user_id == user.id, Device.is_active == True).all()
-        known_device = next((d for d in active_devices if d.device_fingerprint == request.device_fingerprint), None)
-
-        if not known_device and len(active_devices) >= 3:
-            devices_list = [{"id": str(d.id), "name": d.device_name, "last_seen": d.last_seen.isoformat()} for d in active_devices]
-            return Response(status_code=403, content=json.dumps({"detail": "Límite de dispositivos alcanzado (3/3)", "devices": devices_list}))
-
-        if not known_device:
-            known_device = Device(user_id=user.id, device_fingerprint=request.device_fingerprint, device_name=request.device_name)
-            db.add(known_device)
-        else:
-            known_device.last_seen = datetime.now(timezone.utc)
-        db.commit()
-
-        access_token, refresh_token = create_tokens(user)
-        response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, max_age=7*24*60*60, samesite="lax")
-        
-        return {"access_token": access_token, "user": {"id": str(user.id), "name": user.name, "email": user.email, "role": user.role}}
-
-    except ValueError:
+    google_response = requests.get(
+        'https://www.googleapis.com/oauth2/v3/userinfo',
+        headers={'Authorization': f'Bearer {request.token}'}
+    )
+    
+    if google_response.status_code != 200:
         raise HTTPException(status_code=401, detail="Token de Google inválido")
+        
+    idinfo = google_response.json()
+    email = idinfo.get('email')
+    name = idinfo.get('name', 'Usuario')
+    
+    if not email:
+        raise HTTPException(status_code=400, detail="No se pudo obtener el correo de Google")
+    
+    user = db.query(User).filter(User.email == email).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Cuenta de Google no registrada. Por favor completa tu registro con tu fecha de nacimiento.")
+    
+    active_devices = db.query(Device).filter(Device.user_id == user.id, Device.is_active == True).all()
+    known_device = next((d for d in active_devices if d.device_fingerprint == request.device_fingerprint), None)
+
+    if not known_device and len(active_devices) >= 3:
+        devices_list = [{"id": str(d.id), "name": d.device_name, "last_seen": d.last_seen.isoformat()} for d in active_devices]
+        return Response(status_code=403, content=json.dumps({"detail": "Límite de dispositivos alcanzado (3/3)", "devices": devices_list}))
+
+    if not known_device:
+        known_device = Device(user_id=user.id, device_fingerprint=request.device_fingerprint, device_name=request.device_name)
+        db.add(known_device)
+    else:
+        known_device.last_seen = datetime.now(timezone.utc)
+    db.commit()
+
+    access_token, refresh_token = create_tokens(user)
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, max_age=7*24*60*60, samesite="lax")
+    
+    return {"access_token": access_token, "user": {"id": str(user.id), "name": user.name, "email": user.email, "role": user.role}}
 
 @router.post("/devices/{device_id}/revoke")
 def revoke_device(device_id: UUID, db: Session = Depends(get_auth_db)):

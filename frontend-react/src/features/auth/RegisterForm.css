@@ -217,3 +217,28 @@
   color: #f4e951;
   border: 1px solid rgba(244, 233, 81, 0.3);
 }
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(5, 5, 5, 0.85); 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px); 
+}
+
+.modal-content {
+  background-color: #16181f;
+  padding: 2.5rem;
+  border-radius: 12px;
+  max-width: 420px;
+  width: 90%;
+  color: #ffffff;
+  border: 1px solid #2a2c36;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}

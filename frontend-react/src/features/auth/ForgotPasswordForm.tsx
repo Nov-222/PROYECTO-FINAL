@@ -12,16 +12,19 @@ const forgotSchema = z.object({
 
 export const ForgotPasswordForm = () => {
   const [message, setMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false); 
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(forgotSchema),
   });
 
   const onSubmit = async (data: { email: string }) => {
+    setIsLoading(true); 
     try {
       await apiClient.post('/auth/password-reset-request', data);
-      setMessage('Si ese correo existe en nuestro sistema, recibirás un enlace en los próximos minutos');
     } catch (error) {
+    } finally {
+      setIsLoading(false);
       setMessage('Si ese correo existe en nuestro sistema, recibirás un enlace en los próximos minutos');
     }
   };
@@ -39,12 +42,12 @@ export const ForgotPasswordForm = () => {
 
           <div className="register-form__field">
             <label className="register-form__label">Email</label>
-            <input className="register-form__input" type="email" {...register('email')} />
+            <input className="register-form__input" type="email" placeholder="name@example.com" {...register('email')} disabled={isLoading} />
             {errors.email && <span className="register-form__error">{errors.email?.message as string}</span>}
           </div>
 
-          <button className="register-form__submit" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Enviando...' : 'Enviar enlace'}
+          <button className="register-form__submit" type="submit" disabled={isLoading}>
+            {isLoading ? 'Enviando...' : 'Enviar enlace'}
           </button>
 
           <div className="register-form__footer">
