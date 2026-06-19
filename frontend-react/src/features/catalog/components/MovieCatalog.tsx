@@ -30,7 +30,12 @@ export const MovieCatalog = () => {
       }
       setHasMore(data.page < data.pages);
     } catch (err: any) {
-      console.error("[Internal Log] Error fetching catalog:", { timestamp: new Date(), error: err.message });
+      console.error("[Internal Structured Log]", {
+        event: "CATALOG_FETCH_FAILURE",
+        timestamp: new Date().toISOString(),
+        message: err.message,
+        context: { page: pageNumber }
+      });
       setError("Error al cargar la cartelera.");
     } finally {
       setIsLoading(false);
@@ -42,6 +47,11 @@ export const MovieCatalog = () => {
     loadMovies(1, true);
   }, []);
 
+  const handleReload = () => {
+    setPage(1);
+    loadMovies(1, true);
+  };
+
   const handleLoadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
@@ -51,8 +61,9 @@ export const MovieCatalog = () => {
   if (error && movies.length === 0) {
     return (
       <div className="catalog-state">
+        <div className="catalog-state__icon">⚠️</div>
         <h2 className="catalog-state__title">{error}</h2>
-        <button className="catalog-state__btn" onClick={() => loadMovies(1, true)}>Reintentar</button>
+        <button className="catalog-state__btn" onClick={handleReload}>Reintentar</button>
       </div>
     );
   }
@@ -60,6 +71,7 @@ export const MovieCatalog = () => {
   if (!isLoading && movies.length === 0) {
     return (
       <div className="catalog-state">
+        <div className="catalog-state__icon">🎬</div>
         <h2 className="catalog-state__title">No hay películas en cartelera esta semana. ¡Volvé pronto!</h2>
       </div>
     );
@@ -68,13 +80,12 @@ export const MovieCatalog = () => {
   return (
     <section className="catalog-section">
       <div className="catalog-header">
-        <h2 className="catalog-header__title">Now Showing</h2>
+        <h2 className="catalog-header__title">En Cartelera</h2>
         <div className="catalog-filters">
-          <button className="catalog-filters__tab active">All</button>
-          <button className="catalog-filters__tab">Action</button>
-          <button className="catalog-filters__tab">Comedy</button>
-          <button className="catalog-filters__tab">Sci-fi</button>
-          <button className="catalog-filters__tab">Thriller</button>
+          <button className="catalog-filters__tab active">Todas</button>
+          <button className="catalog-filters__tab">Acción</button>
+          <button className="catalog-filters__tab">Drama</button>
+          <button className="catalog-filters__tab">Ciencia Ficción</button>
         </div>
       </div>
 
@@ -84,8 +95,8 @@ export const MovieCatalog = () => {
         ))}
 
         {(isLoading || isFetchingMore) && 
-          Array.from({ length: isLoading ? 12 : 4 }).map((_, i) => (
-            <SkeletonCard key={`skel-${i}`} />
+          Array.from({ length: isLoading ? 8 : 4 }).map((_, i) => (
+            <SkeletonCard key={`skeleton-${i}`} />
           ))
         }
       </div>
@@ -97,7 +108,7 @@ export const MovieCatalog = () => {
             onClick={handleLoadMore} 
             disabled={isFetchingMore}
           >
-            {isFetchingMore ? 'Cargando...' : 'Cargar Más'}
+            {isFetchingMore ? 'Cargando...' : 'Cargar Más Películas'}
           </button>
         </div>
       )}

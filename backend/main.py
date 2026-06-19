@@ -20,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth_router, prefix="/auth")
+app.include_router(auth_router) 
 app.include_router(catalog_public_router, prefix="/api/v1")
 
 @app.get("/health")

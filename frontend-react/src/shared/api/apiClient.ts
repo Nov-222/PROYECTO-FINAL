@@ -2,9 +2,10 @@ import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
 export const apiClient = axios.create({
-  baseURL: 'http://localhost',
-  headers: { 'Content-Type': 'application/json' },
-  withCredentials: true 
+  withCredentials: true, 
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 apiClient.interceptors.response.use(
@@ -29,7 +30,9 @@ apiClient.interceptors.response.use(
 );
 
 apiClient.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().accessToken;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const token = localStorage.getItem('token');
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
