@@ -1,0 +1,235 @@
+.catalog-section {
+  padding: 3rem 5%;
+  background-color: #16181f; 
+  color: #ffffff;
+  min-height: 100vh;
+}
+
+.catalog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.catalog-header__title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.catalog-filters {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+}
+
+.catalog-filters__tab {
+  background: none;
+  border: none;
+  color: #8c8f9b;
+  font-size: 1rem;
+  cursor: pointer;
+  padding-bottom: 0.5rem;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.catalog-filters__tab:hover {
+  color: #ffffff;
+}
+
+.catalog-filters__tab.active {
+  color: #ffffff;
+  border-bottom: 3px solid #f4e951; 
+}
+
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 2rem;
+}
+
+.movie-card {
+  background-color: #1c1f2a;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.movie-card:hover {
+  transform: translateY(-5px);
+}
+
+.movie-card__image-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3; 
+  background-color: #2a2c36;
+}
+
+.movie-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.movie-card__overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.movie-card:hover .movie-card__overlay {
+  opacity: 1;
+}
+
+.movie-card__btn-trailer {
+  background: transparent;
+  border: 2px solid white;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.movie-card__info {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.movie-card__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.movie-card__meta {
+  font-size: 0.85rem;
+  color: #8c8f9b;
+  margin: 0 0 0.25rem 0;
+}
+
+.movie-card__details {
+  font-size: 0.85rem;
+  color: #8c8f9b;
+  margin: 0 0 1rem 0;
+}
+
+.movie-card__btn-book {
+  background-color: #f4e951;
+  color: #16181f;
+  border: none;
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: auto;
+  transition: background 0.2s;
+}
+
+.movie-card__btn-book:hover {
+  background-color: #e5d930;
+}
+
+.skeleton-card {
+  pointer-events: none;
+}
+
+@keyframes pulse {
+  0% { background-color: #2a2c36; }
+  50% { background-color: #383b47; }
+  100% { background-color: #2a2c36; }
+}
+
+.skeleton-card__image, 
+.skeleton-card__text, 
+.skeleton-card__button {
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.skeleton-card__text {
+  height: 1rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-card__title { width: 80%; height: 1.2rem; margin-bottom: 0.75rem;}
+.skeleton-card__meta { width: 50%; }
+.skeleton-card__details { width: 60%; margin-bottom: 1rem; }
+
+.skeleton-card__button {
+  height: 2.5rem;
+  border-radius: 8px;
+  margin-top: auto;
+}
+
+.catalog-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 2rem;
+  text-align: center;
+  min-height: 50vh;
+}
+
+.catalog-state__title {
+  color: #8c8f9b;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.catalog-state__btn {
+  background-color: transparent;
+  color: #f4e951;
+  border: 1px solid #f4e951;
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.catalog-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 3rem;
+}
+
+.catalog-footer__btn {
+  background-color: transparent;
+  border: 2px solid #8c8f9b;
+  color: #ffffff;
+  padding: 0.75rem 3rem;
+  border-radius: 30px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.catalog-footer__btn:hover:not(:disabled) {
+  border-color: #f4e951;
+  color: #f4e951;
+}
+
+.catalog-footer__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
