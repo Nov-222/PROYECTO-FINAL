@@ -16,6 +16,36 @@ import requests
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
 
+login_attempts = {}
+
+def check_rate_limit(ip: str):
+    now = datetime.now(timezone.utc)
+    if ip in login_attempts:
+        attempts, lock_until = login_attempts[ip]
+        
+        if lock_until and now < lock_until:
+            raise HTTPException(status_code=429, detail="Demasiados intentos. Intentá nuevamente en 5 minutos.")
+            
+        if lock_until and now >= lock_until:
+            login_attempts[ip] = (0, None)
+    else:
+        login_attempts[ip] = (0, None)
+
+def register_failed_attempt(ip: str):
+    now = datetime.now(timezone.utc)
+    attempts, lock_until = login_attempts.get(ip, (0, None))
+    attempts += 1
+    
+    if attempts >= 6:
+        login_attempts[ip] = (attempts, now + timedelta(minutes=5))
+        raise HTTPException(status_code=429, detail="Demasiados intentos. Intentá nuevamente en 5 minutos.")
+    else:
+        login_attempts[ip] = (attempts, None)
+
+def clear_attempts(ip: str):
+    if ip in login_attempts:
+        login_attempts[ip] = (0, None)
+
 def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(12)).decode('utf-8')
 
@@ -120,11 +150,17 @@ def register_user(request: UserRegisterRequest, response: Response, db: Session 
     }
 
 @router.post("/login")
-def login(request: LoginRequest, response: Response, db: Session = Depends(get_auth_db)):
+def login(request: LoginRequest, http_request: Request, response: Response, db: Session = Depends(get_auth_db)):
+    client_ip = http_request.headers.get("X-Real-IP") or http_request.client.host
+    check_rate_limit(client_ip)
+    
     user = db.query(User).filter(User.email == request.email).first()
     
     if not user or not verify_password(request.password, user.password_hash):
+        register_failed_attempt(client_ip) 
         raise HTTPException(status_code=401, detail="Correo o contraseña incorrectos")
+
+    clear_attempts(client_ip) 
 
     active_devices = db.query(Device).filter(Device.user_id == user.id, Device.is_active == True).all()
     known_device = next((d for d in active_devices if d.device_fingerprint == request.device_fingerprint), None)

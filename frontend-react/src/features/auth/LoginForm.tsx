@@ -73,6 +73,8 @@ export const LoginForm = () => {
     } catch (error: any) {
       if (error.response?.status === 401) {
         setServerError('Correo o contraseña incorrectos'); 
+      } else if (error.response?.status === 429) {
+        setServerError('Demasiados intentos. Intentá nuevamente en 5 minutos.');
       } else if (error.response?.status === 403 && error.response.data.devices) {
         setDevicesLimit(error.response.data.devices);
       } else {
