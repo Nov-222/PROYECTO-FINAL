@@ -94,9 +94,29 @@ class RoomAdmin(admin.ModelAdmin):
 
 @admin.register(Screening)
 class ScreeningAdmin(admin.ModelAdmin):
-    list_display = ('movie', 'room', 'start_time', 'end_time', 'price', 'is_active')
-    list_filter = ('is_active', 'room', 'start_time')
+    list_display = ('movie', 'room', 'format', 'language', 'start_time', 'is_active')
+    list_filter = ('is_active', 'room', 'format', 'language')
     search_fields = ('movie__title',)
+    readonly_fields = ('end_time',) 
+    actions = ['cancel_screenings']
+    
+    @admin.action(description="Cancelar funciones seleccionadas (Inicia Reembolsos)")
+    def cancel_screenings(self, request, queryset):
+        count = 0
+        for screening in queryset:
+            if screening.is_active:
+                snapshot_before = model_to_dict(screening)
+                
+                screening.is_active = False
+                screening.cancellation_reason = "Cancelada por administración"
+                screening.save()
+                
+                TicketOrder.objects.filter(screening=screening, status='completed').update(status='pending_refund')
+                
+                create_audit_log(request, 'DELETE', screening, snapshot_before)
+                count += 1
+                
+        self.message_user(request, f"{count} funciones canceladas. Órdenes afectadas pasadas a estado de reembolso.")
 
     def save_model(self, request, obj, form, change):
         snapshot_before = model_to_dict(Screening.objects.get(pk=obj.pk)) if change else None

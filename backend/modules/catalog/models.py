@@ -92,11 +92,15 @@ class Seat(models.Model):
 
 class Screening(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name='screenings', verbose_name="Película")
-    room = models.ForeignKey(Room, on_delete=models.CASCADE, verbose_name="Sala")
+    movie = models.ForeignKey('Movie', on_delete=models.CASCADE, related_name='screenings', verbose_name="Película")
+    room = models.ForeignKey('Room', on_delete=models.CASCADE, verbose_name="Sala")
+    
+    format = models.ForeignKey('Format', on_delete=models.PROTECT, verbose_name="Formato")
+    language = models.ForeignKey('Language', on_delete=models.PROTECT, verbose_name="Idioma")
+    
     start_time = models.DateTimeField(verbose_name="Inicio")
     end_time = models.DateTimeField(verbose_name="Fin (Calculado)", editable=False, null=True)
-    price = models.DecimalField(max_digits=8, decimal_places=2, verbose_name="Precio")
+    
     is_active = models.BooleanField(default=True, verbose_name="Activa")
     cancellation_reason = models.CharField(max_length=255, blank=True, null=True, verbose_name="Motivo de Cancelación")
 
@@ -104,14 +108,19 @@ class Screening(models.Model):
         if not self.start_time or not getattr(self, 'movie', None) or not getattr(self, 'room', None):
             return
 
-        if (self._state.adding or self.__original_start_time != self.start_time):
+        if self._state.adding or getattr(self, '_original_start_time', None) != self.start_time:
             if self.start_time <= timezone.now():
                 raise ValidationError({'start_time': "La fecha y hora de la función debe ser futura."})
 
         if not self.movie.is_active:
             raise ValidationError({'movie': "No se puede programar una función para una película inactiva."})
+        
+        if not self.room.is_active:
+            raise ValidationError({'room': "La sala seleccionada está inactiva."})
 
-        self.end_time = self.start_time + timedelta(minutes=self.movie.duration_minutes + 30)
+        duration = self.movie.duration_minutes
+        cleaning = self.room.cleaning_time_minutes
+        self.end_time = self.start_time + timedelta(minutes=duration + cleaning)
         
         overlaps = Screening.objects.filter(
             room=self.room,
@@ -121,11 +130,11 @@ class Screening(models.Model):
         ).exclude(pk=self.pk)
         
         if overlaps.exists():
-            raise ValidationError("La sala ya tiene una función programada en ese horario.")
+            raise ValidationError(f"La sala ya tiene una función programada en ese horario (incluye {cleaning} min de limpieza).")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.__original_start_time = self.start_time
+        self._original_start_time = self.start_time if self.pk else None
 
     def save(self, *args, **kwargs):
         self.clean()
@@ -133,13 +142,14 @@ class Screening(models.Model):
 
     def __str__(self): 
         start_formatted = getattr(self, 'start_time', None)
-        if start_formatted:
-            return f"{self.movie.title} - {self.start_time.strftime('%d/%m/%Y %H:%M')}"
-        return f"{self.movie.title} - (Sin fecha)"
+        if start_formatted and getattr(self, 'movie', None) and getattr(self, 'format', None) and getattr(self, 'language', None):
+            return f"{self.movie.title} ({self.format.name} {self.language.name}) - {self.start_time.strftime('%d/%m/%Y %H:%M')}"
+        return "Nueva Función"
         
     class Meta: 
         verbose_name = "Función"
         verbose_name_plural = "Funciones"
+        ordering = ['-start_time']
 
 class TicketOrder(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
