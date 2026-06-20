@@ -4,10 +4,9 @@ import redis
 import json
 import os
 from typing import Optional
-
-from sqlalchemy import text, inspect
+from sqlalchemy import text
 from sqlalchemy.orm import Session
-from core.database import get_business_db 
+from core.database import get_business_db
 
 router = APIRouter(prefix="/catalog", tags=["Public Catalog"])
 
@@ -86,31 +85,18 @@ def get_public_movies(
         raise HTTPException(status_code=500, detail="Error interno al buscar en la cartelera")
     
 @router.get("/genres")
-def get_public_genres(db: Session = Depends(get_business_db)): # <--- CAMBIO CLAVE AQUÍ
+def get_public_genres(db: Session = Depends(get_business_db)):
     try:
-        result = db.execute(text("SELECT name FROM catalog_genre WHERE is_active = true ORDER BY name ASC"))
+        query = text("SELECT name FROM catalog_genre ORDER BY name ASC")
+        
+        result = db.execute(query).fetchall()
         genres = [row[0] for row in result]
         
-        print(f"[DEBUG] Géneros encontrados en business_db: {genres}")
+        if not genres:
+            return {"genres": []}
+            
         return {"genres": genres}
         
     except Exception as e:
-        db.rollback()
-        print(f"[WARNING] Tabla catalog_genre no encontrada. Intentando recuperación dinámica...")
-        try:
-            inspector = inspect(db.get_bind())
-            tables = inspector.get_table_names()
-            genre_table = next((t for t in tables if 'genre' in t.lower() and 'film' not in t.lower()), None)
-            
-            if genre_table:
-                print(f"[RECOVERY] Tabla de géneros encontrada como: {genre_table}")
-                result = db.execute(text(f"SELECT name FROM {genre_table} WHERE is_active = true ORDER BY name ASC"))
-                genres = [row[0] for row in result]
-                return {"genres": genres}
-            else:
-                print("[CRITICAL] ¡No se encontró ninguna tabla de géneros en la business_db!")
-                return {"genres": []}
-                
-        except Exception as recovery_error:
-            print(f"[CRITICAL ERROR] Falló la recuperación: {recovery_error}")
-            return {"genres": []}
+        print(f"Error al obtener géneros: {e}")
+        return {"genres": []}
