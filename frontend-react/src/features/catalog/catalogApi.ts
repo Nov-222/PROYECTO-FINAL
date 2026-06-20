@@ -21,9 +21,27 @@ export interface CatalogResponse {
   pages: number;
 }
 
-export const fetchMovies = async (page: number = 1, size: number = 12): Promise<CatalogResponse> => {
-  const response = await apiClient.get<CatalogResponse>('/api/v1/catalog/movies', {
-    params: { page, size }
-  });
+export const fetchMovies = async (
+  page: number = 1, 
+  size: number = 12,
+  searchQuery?: string,
+  genre?: string
+): Promise<CatalogResponse> => {
+  const params: Record<string, any> = { page, size };
+  
+  if (searchQuery) params.q = searchQuery;
+  if (genre && genre !== 'Todas') params.genre = genre;
+
+  const response = await apiClient.get<CatalogResponse>('/api/v1/catalog/movies', { params });
   return response.data;
+};
+
+export const fetchGenres = async (): Promise<string[]> => {
+  try {
+    const response = await apiClient.get<{genres: string[]}>('/api/v1/catalog/genres');
+    return response.data.genres;
+  } catch (error) {
+    console.error("Error cargando géneros dinámicos:", error);
+    return []; 
+  }
 };
