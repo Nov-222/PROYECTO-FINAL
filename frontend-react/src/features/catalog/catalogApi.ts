@@ -33,6 +33,17 @@ export interface MovieDetail extends Movie {
   screenings: Screening[];
 }
 
+export interface MovieScreeningsResponse {
+  movie: {
+    id: string;
+    title: string;
+    duration_minutes: number;
+    rating_classification: string;
+    poster_url: string;
+  };
+  screenings: Screening[];
+}
+
 export const fetchMovies = async (
   page: number = 1, 
   size: number = 12,
@@ -60,5 +71,10 @@ export const fetchGenres = async (): Promise<string[]> => {
 
 export const fetchMovieDetail = async (id: string): Promise<MovieDetail> => {
   const response = await apiClient.get<MovieDetail>(`/api/v1/catalog/movies/${id}`);
+  return response.data;
+};
+
+export const fetchMovieScreenings = async (id: string): Promise<MovieScreeningsResponse> => {
+  const response = await apiClient.get<MovieScreeningsResponse>(`/api/v1/catalog/movies/${id}/screenings`);
   return response.data;
 };

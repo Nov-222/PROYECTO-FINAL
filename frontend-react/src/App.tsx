@@ -6,6 +6,7 @@ import { ForgotPasswordForm } from './features/auth/ForgotPasswordForm';
 import { ResetPasswordForm } from './features/auth/ResetPasswordForm';
 import { HomePage } from './pages/HomePage';
 import { MovieDetailPage } from './pages/MovieDetailPage';
+import { ScreeningSelectionPage } from './pages/ScreeningSelectionPage';
 
 function App() {
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "631798098248-725ofbk4b17k45vpv3l6gsmetaukq89i.apps.googleusercontent.com";
@@ -23,6 +24,7 @@ function App() {
           
           <Route path="/home" element={<HomePage />} />
           <Route path="/movie/:id" element={<MovieDetailPage />} />
+          <Route path="/movie/:id/screenings" element={<ScreeningSelectionPage />} />
         </Routes>
       </BrowserRouter>
     </GoogleOAuthProvider>

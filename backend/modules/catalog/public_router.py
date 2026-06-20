@@ -171,3 +171,58 @@ def get_movie_detail(movie_id: str, db: Session = Depends(get_business_db)):
     except Exception as e:
         print(f"[CRITICAL] Error en /movies/{movie_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno al cargar la película")
+    
+@router.get("/movies/{movie_id}/screenings")
+def get_movie_screenings(movie_id: str, db: Session = Depends(get_business_db)):
+    try:
+        movie_query = text("""
+            SELECT title, duration_minutes, rating_classification, poster_url
+            FROM catalog_movie
+            WHERE id = :id AND is_active = true
+        """)
+        movie_row = db.execute(movie_query, {"id": movie_id}).fetchone()
+
+        if not movie_row:
+            raise HTTPException(status_code=404, detail="Película no encontrada")
+
+        now_utc = datetime.now(timezone.utc)
+        screenings_query = text("""
+            SELECT CAST(s.id AS VARCHAR), s.start_time, r.name as room_name, f.name as format_name, l.name as language_name
+            FROM catalog_screening s
+            JOIN catalog_room r ON s.room_id = r.id
+            JOIN catalog_format f ON s.format_id = f.id
+            JOIN catalog_language l ON s.language_id = l.id
+            WHERE s.movie_id = :id 
+              AND s.start_time > :now 
+              AND s.is_active = true
+            ORDER BY s.start_time ASC
+        """)
+        
+        screenings_result = db.execute(screenings_query, {"id": movie_id, "now": now_utc}).fetchall()
+        
+        screenings = []
+        for s in screenings_result:
+            screenings.append({
+                "id": s[0],
+                "start_time": s[1].isoformat() if hasattr(s[1], 'isoformat') else str(s[1]),
+                "room": s[2],
+                "format": s[3],
+                "language": s[4]
+            })
+
+        return {
+            "movie": {
+                "id": movie_id,
+                "title": movie_row[0],
+                "duration_minutes": movie_row[1],
+                "rating_classification": movie_row[2],
+                "poster_url": movie_row[3]
+            },
+            "screenings": screenings
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[CRITICAL] Error en /movies/{movie_id}/screenings: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno al cargar los horarios")
