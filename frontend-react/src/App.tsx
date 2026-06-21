@@ -9,6 +9,8 @@ import { MovieDetailPage } from './pages/MovieDetailPage';
 import { ScreeningSelectionPage } from './pages/ScreeningSelectionPage';
 import { MainLayout } from './shared/components/layout/MainLayout';
 import { SeatSelectionPage } from './pages/SeatSelectionPage';
+import { PaymentPage } from './pages/PaymentPage';
+import { TicketPage } from './pages/TicketPage';
 
 function App() {
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "631798098248-725ofbk4b17k45vpv3l6gsmetaukq89i.apps.googleusercontent.com";
@@ -23,12 +25,15 @@ function App() {
           <Route path="/login" element={<LoginForm />} />
           <Route path="/forgot-password" element={<ForgotPasswordForm />} />
           <Route path="/reset-password" element={<ResetPasswordForm />} />
-          <Route path="/booking/:id/seats" element={<SeatSelectionPage />} />
           
           <Route element={<MainLayout />}>
             <Route path="/home" element={<HomePage />} />
             <Route path="/movie/:id" element={<MovieDetailPage />} />
             <Route path="/movie/:id/screenings" element={<ScreeningSelectionPage />} />
+            <Route path="/booking/:id/seats" element={<SeatSelectionPage />} />
+            <Route path="/booking/:id/seats" element={<SeatSelectionPage />} />
+            <Route path="/booking/:id/payment" element={<PaymentPage />} />
+            <Route path="/booking/:id/ticket" element={<TicketPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

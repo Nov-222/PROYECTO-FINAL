@@ -122,3 +122,11 @@ export const lockScreeningSeats = async (screeningId: string, seatIds: string[])
   });
   return response.data;
 };
+
+export const processScreeningPurchase = async (screeningId: string, seatIds: string[], method: string) => {
+  const response = await apiClient.post(`/api/v1/catalog/screenings/${screeningId}/purchase`, {
+    seat_ids: seatIds,
+    payment_method: method
+  });
+  return response.data;
+};

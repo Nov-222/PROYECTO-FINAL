@@ -288,10 +288,19 @@ def get_screening_seats(screening_id: str, db: Session = Depends(get_business_db
         locked_keys = redis_client.keys(f"lock:{screening_id}:*")
         locked_seat_ids = [k.split(":")[-1] for k in locked_keys]
 
+        sold_keys = redis_client.keys(f"sold:{screening_id}:*")
+        sold_seat_ids = [k.split(":")[-1] for k in sold_keys]
+
         result_seats = []
         for s in seats:
             sid = s[0]
-            status = "locked" if sid in locked_seat_ids else "available"
+            if sid in sold_seat_ids:
+                status = "sold"
+            elif sid in locked_seat_ids:
+                status = "locked"
+            else:
+                status = "available"
+            
             result_seats.append({
                 "id": sid, "row": s[1], "col": s[2], "type": s[3], "status": status
             })
@@ -344,4 +353,30 @@ def lock_seats(screening_id: str, req: LockSeatsRequest, db: Session = Depends(g
     return {
         "message": "Butacas bloqueadas con éxito.",
         "expires_in_seconds": 600
+    }
+
+class PurchaseRequest(BaseModel):
+    seat_ids: List[str]
+    payment_method: str
+
+@router.post("/screenings/{screening_id}/purchase")
+def process_purchase(screening_id: str, req: PurchaseRequest, db: Session = Depends(get_business_db)):
+    """HU-13: Procesa el pago simulado y consolida los asientos como vendidos."""
+    
+    for sid in req.seat_ids:
+        if not redis_client.exists(f"lock:{screening_id}:{sid}"):
+            raise HTTPException(409, "Tu reserva expiró. Volvé a elegir tus butacas.")
+
+    for sid in req.seat_ids:
+        redis_client.delete(f"lock:{screening_id}:{sid}")
+        redis_client.set(f"sold:{screening_id}:{sid}", "sold")
+
+    import uuid
+    order_number = f"ORD-{datetime.now().year}-{str(uuid.uuid4())[:8].upper()}"
+
+    return {
+        "order_id": order_number,
+        "status": "completed",
+        "method": req.payment_method,
+        "tickets": [{"seat_id": sid, "qr_code": f"QR-{order_number}-{sid}"} for sid in req.seat_ids]
     }

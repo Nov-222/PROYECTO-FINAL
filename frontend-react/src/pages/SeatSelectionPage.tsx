@@ -67,8 +67,14 @@ export const SeatSelectionPage = () => {
     try {
       setErrorMsg('');
       if (!id) return;
-      await lockScreeningSeats(id, selectedSeats.map(s => s.id));
-      navigate(`/booking/${id}/payment?${searchParams.toString()}`);
+      
+      const res = await lockScreeningSeats(id, selectedSeats.map(s => s.id));
+      
+      sessionStorage.setItem('lockExpiration', (Date.now() + res.expires_in_seconds * 1000).toString());
+      
+      const seatQuery = selectedSeats.map(s => s.id).join(',');
+      navigate(`/booking/${id}/payment?${searchParams.toString()}&seats=${seatQuery}`);
+
     } catch (err: any) {
       if (err.response?.status === 409) {
         alert(err.response.data.detail);
@@ -160,7 +166,7 @@ export const SeatSelectionPage = () => {
                       let borderColor = 'transparent';
 
                       if (seat.status === 'locked') {
-                        bgColor = '#14532d'; 
+                        bgColor = '#14532d';
                         fontColor = '#ffffff';
                         cursor = 'not-allowed';
                       } else if (seat.status === 'sold') {
