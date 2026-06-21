@@ -39,6 +39,14 @@ export interface TicketType {
   price: number;
 }
 
+export interface Seat {
+  id: string;
+  row: string;
+  col: number;
+  type: 'normal' | 'vip' | 'wheelchair' | 'corridor';
+  status: 'available' | 'locked' | 'sold';
+}
+
 export interface MovieScreeningsResponse {
   movie: {
     id: string;
@@ -83,5 +91,17 @@ export const fetchMovieDetail = async (id: string): Promise<MovieDetail> => {
 
 export const fetchMovieScreenings = async (id: string): Promise<MovieScreeningsResponse> => {
   const response = await apiClient.get<MovieScreeningsResponse>(`/api/v1/catalog/movies/${id}/screenings`);
+  return response.data;
+};
+
+export const fetchScreeningSeats = async (screeningId: string): Promise<Seat[]> => {
+  const response = await apiClient.get<{seats: Seat[]}>(`/api/v1/catalog/screenings/${screeningId}/seats`);
+  return response.data.seats;
+};
+
+export const lockScreeningSeats = async (screeningId: string, seatIds: string[]) => {
+  const response = await apiClient.post(`/api/v1/catalog/screenings/${screeningId}/lock-seats`, {
+    seat_ids: seatIds
+  });
   return response.data;
 };

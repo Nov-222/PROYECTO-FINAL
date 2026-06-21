@@ -8,6 +8,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from core.database import get_business_db
 from datetime import datetime, timezone
+from pydantic import BaseModel
+from typing import List
 
 router = APIRouter(prefix="/catalog", tags=["Public Catalog"])
 
@@ -16,6 +18,9 @@ es = Elasticsearch(ES_HOST)
 
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
+
+class LockSeatsRequest(BaseModel):
+    seat_ids: List[str]
 
 @router.get("/movies")
 def get_public_movies(
@@ -253,3 +258,65 @@ def get_movie_screenings(movie_id: str, db: Session = Depends(get_business_db)):
     except Exception as e:
         print(f"[CRITICAL] Error en /movies/{movie_id}/screenings: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno al cargar los horarios")
+    
+@router.get("/screenings/{screening_id}/seats")
+def get_screening_seats(screening_id: str, db: Session = Depends(get_business_db)):
+    try:
+        scr_query = text("SELECT room_id, start_time FROM catalog_screening WHERE id = :id AND is_active = true")
+        scr = db.execute(scr_query, {"id": screening_id}).fetchone()
+        
+        if not scr:
+            raise HTTPException(404, "Función no encontrada.")
+            
+        if scr[1] < datetime.now(timezone.utc):
+            raise HTTPException(422, "No se pueden seleccionar butacas para una función en el pasado.")
+
+        seats_query = text("""
+            SELECT CAST(id AS VARCHAR), row_label, column_number, seat_type 
+            FROM catalog_seat 
+            WHERE room_id = :rid 
+            ORDER BY row_label, column_number
+        """)
+        seats = db.execute(seats_query, {"rid": scr[0]}).fetchall()
+
+        locked_keys = redis_client.keys(f"lock:{screening_id}:*")
+        locked_seat_ids = [k.split(":")[-1] for k in locked_keys]
+
+        result = []
+        for s in seats:
+            sid = s[0]
+            status = "locked" if sid in locked_seat_ids else "available"
+            result.append({
+                "id": sid, "row": s[1], "col": s[2], "type": s[3], "status": status
+            })
+
+        return {"seats": result}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[Error] Seats: {e}")
+        raise HTTPException(500, "Error interno.")
+
+
+@router.post("/screenings/{screening_id}/lock-seats")
+def lock_seats(screening_id: str, req: LockSeatsRequest, db: Session = Depends(get_business_db)):
+    if len(req.seat_ids) > 8:
+        raise HTTPException(400, "Máximo 8 entradas por compra.")
+
+    locked_acquired = []
+    
+    for sid in req.seat_ids:
+        key = f"lock:{screening_id}:{sid}"
+        acquired = redis_client.set(key, "user_id_mock", nx=True, ex=600)
+        
+        if acquired:
+            locked_acquired.append(key)
+        else:
+            for lk in locked_acquired:
+                redis_client.delete(lk)
+            raise HTTPException(409, "Una o más butacas acaban de ser reservadas por otro usuario. Selecciona otras.")
+
+    return {
+        "message": "Butacas bloqueadas con éxito.",
+        "expires_in_seconds": 600
+    }

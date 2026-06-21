@@ -8,6 +8,7 @@ import { HomePage } from './pages/HomePage';
 import { MovieDetailPage } from './pages/MovieDetailPage';
 import { ScreeningSelectionPage } from './pages/ScreeningSelectionPage';
 import { MainLayout } from './shared/components/layout/MainLayout';
+import { SeatSelectionPage } from './pages/SeatSelectionPage';
 
 function App() {
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "631798098248-725ofbk4b17k45vpv3l6gsmetaukq89i.apps.googleusercontent.com";
@@ -22,6 +23,7 @@ function App() {
           <Route path="/login" element={<LoginForm />} />
           <Route path="/forgot-password" element={<ForgotPasswordForm />} />
           <Route path="/reset-password" element={<ResetPasswordForm />} />
+          <Route path="/booking/:id/seats" element={<SeatSelectionPage />} />
           
           <Route element={<MainLayout />}>
             <Route path="/home" element={<HomePage />} />
