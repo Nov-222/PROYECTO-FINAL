@@ -65,18 +65,6 @@ export const MovieDetailPage = () => {
 
   return (
     <div style={{ backgroundColor: '#0f1115', minHeight: '100vh', color: '#ffffff', fontFamily: '"Inter", system-ui, sans-serif', paddingBottom: '4rem' }}>
-      
-      <header style={{ backgroundColor: 'rgba(23, 26, 33, 0.95)', backdropFilter: 'blur(12px)', padding: '1.2rem 6%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #262932', position: 'sticky', top: 0, zIndex: 50 }}>
-        <h1 style={{ color: '#f4e951', margin: 0, fontSize: '1.5rem', fontWeight: '900', letterSpacing: '0.5px', cursor: 'pointer' }} onClick={() => navigate('/home')}>
-          CINEMAPLUS
-        </h1>
-        <button onClick={() => navigate('/home')} style={{ background: 'transparent', border: 'none', color: '#9ca3af', fontWeight: '600', cursor: 'pointer', transition: 'color 0.2s', fontSize: '1rem' }}
-          onMouseOver={(e) => { e.currentTarget.style.color = '#ffffff'; }}
-          onMouseOut={(e) => { e.currentTarget.style.color = '#9ca3af'; }}
-        >
-          ✕ Cerrar
-        </button>
-      </header>
 
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 2rem' }}>
         
