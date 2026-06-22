@@ -395,8 +395,8 @@ export const Header = () => {
         
         @media (max-width: 480px) {
           .header-pill { padding: 0 1rem; }
-          .logo span { display: none; } /* En móvil muy chico, tal vez podrías dejar un logo abreviado */
-          .logo::after { content: 'CINEMAPLUS'; }
+          .logo { font-size: 0; } 
+          .logo::after { content: 'C+'; font-size: 1.4rem; }
         }
       `}</style>
 
@@ -459,12 +459,21 @@ export const Header = () => {
               </button>
 
               <div className={`dropdown-menu ${isDropdownOpen ? 'active' : ''}`}>
-                <button className="dropdown-item" onClick={() => alert('Próximamente: Mi Perfil')}>
-                  <ProfileIcon /> Mi Perfil
-                </button>
-                <button className="dropdown-item" onClick={() => navigate('/me/orders')}>
+                <div style={{ padding: '0.8rem 1.2rem', borderBottom: '1px solid #262932', marginBottom: '0.5rem' }}>
+                  <strong style={{ color: '#fff', display: 'block', fontSize: '0.95rem' }}>{user.name}</strong>
+                  <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>{user.email}</span>
+                </div>
+                
+                <button className="dropdown-item" onClick={() => { navigate('/me/orders?tab=tickets'); setIsDropdownOpen(false); }}>
                   <TicketIcon /> Mis Entradas
                 </button>
+                <button className="dropdown-item" onClick={() => { navigate('/me/orders?tab=list'); setIsDropdownOpen(false); }}>
+                  ⭐ Mi Lista
+                </button>
+                <button className="dropdown-item" onClick={() => { navigate('/me/orders?tab=activity'); setIsDropdownOpen(false); }}>
+                  <ProfileIcon /> Mi Actividad
+                </button>
+
                 <div className="dropdown-divider"></div>
                 <button className="dropdown-item logout" onClick={handleLogout}>
                   <LogoutIcon /> Cerrar Sesión
@@ -495,8 +504,9 @@ export const Header = () => {
                 <div className="avatar">{user.name ? user.name.charAt(0).toUpperCase() : 'U'}</div>
                 <span>{user.name}</span>
               </div>
-              <button className="mobile-nav-link" onClick={() => alert('Próximamente: Mi Perfil')}><ProfileIcon /> Mi Perfil</button>
-              <button className="mobile-nav-link" onClick={() => navigate('/me/orders')}><TicketIcon /> Mis Entradas</button>
+              <button className="mobile-nav-link" onClick={() => { navigate('/me/orders?tab=tickets'); setIsMobileMenuOpen(false); }}><TicketIcon /> Mis Entradas</button>
+              <button className="mobile-nav-link" onClick={() => { navigate('/me/orders?tab=list'); setIsMobileMenuOpen(false); }}>⭐ Mi Lista</button>
+              <button className="mobile-nav-link" onClick={() => { navigate('/me/orders?tab=activity'); setIsMobileMenuOpen(false); }}><ProfileIcon /> Mi Actividad</button>
               <button className="mobile-nav-link logout" onClick={handleLogout}><LogoutIcon /> Cerrar Sesión</button>
             </>
           ) : (

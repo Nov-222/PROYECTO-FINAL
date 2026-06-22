@@ -16,7 +16,6 @@ const SeatSelectionPage = React.lazy(() => import('./pages/SeatSelectionPage').t
 const PaymentPage = React.lazy(() => import('./pages/PaymentPage').then(module => ({ default: module.PaymentPage })));
 const TicketPage = React.lazy(() => import('./pages/TicketPage').then(module => ({ default: module.TicketPage })));
 const OrdersHistoryPage = React.lazy(() => import('./pages/OrdersHistoryPage').then(module => ({ default: module.OrdersHistoryPage })));
-
 const GlobalLoader = () => (
   <div style={{ minHeight: '100vh', backgroundColor: '#0f1115', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#f4e951', fontFamily: 'system-ui', fontSize: '1.2rem', fontWeight: 'bold', letterSpacing: '2px' }}>
     CARGANDO...

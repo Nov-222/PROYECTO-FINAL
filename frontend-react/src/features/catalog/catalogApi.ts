@@ -216,3 +216,42 @@ export const submitMovieReview = async (movieId: string, userId: string, userNam
   });
   return response.data;
 };
+
+export interface WatchlistItem {
+  id: string;
+  movie_id: string;
+  movie_title: string;
+  poster_url: string;
+  added_at: string;
+}
+
+export interface ActivityItem {
+  id: string;
+  type: 'rating' | 'review' | 'watchlist' | 'purchase';
+  movie_id: string;
+  title: string;
+  description: string;
+  date: string;
+}
+
+export const fetchWatchlistStatus = async (movieId: string, userId: string) => {
+  const response = await apiClient.get(`/api/v1/ugc/movies/${movieId}/watchlist-status`, { params: { user_id: userId } });
+  return response.data.is_added;
+};
+
+export const toggleWatchlist = async (movieId: string, userId: string, movieTitle: string, posterUrl: string) => {
+  const response = await apiClient.post(`/api/v1/ugc/movies/${movieId}/watchlist`, {
+    user_id: userId, movie_title: movieTitle, poster_url: posterUrl
+  });
+  return response.data.is_added;
+};
+
+export const fetchWatchlist = async (userId: string): Promise<WatchlistItem[]> => {
+  const response = await apiClient.get(`/api/v1/ugc/users/${userId}/watchlist`);
+  return response.data;
+};
+
+export const fetchActivityHistory = async (userId: string): Promise<ActivityItem[]> => {
+  const response = await apiClient.get(`/api/v1/ugc/users/${userId}/activity`);
+  return response.data;
+};

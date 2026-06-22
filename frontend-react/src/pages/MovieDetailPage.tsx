@@ -4,8 +4,10 @@ import {
   fetchMovieDetail, 
   fetchMovieReviews, 
   submitMovieRating, 
-  submitMovieReview, 
-  type MovieDetail,
+  submitMovieReview,
+  fetchWatchlistStatus, 
+  toggleWatchlist,
+  type MovieDetail, 
   type Review, 
   type ReviewsResponse 
 } from '../features/catalog/catalogApi';
@@ -106,6 +108,8 @@ export const MovieDetailPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  const [isWatchlisted, setIsWatchlisted] = useState(false);
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -125,11 +129,28 @@ export const MovieDetailPage = () => {
     loadData();
   }, [id]);
 
+  useEffect(() => {
+    if (user && id) {
+      fetchWatchlistStatus(id, user.id).then(status => setIsWatchlisted(status)).catch(console.error);
+    }
+  }, [user, id]);
+
   const handleBuyTicket = () => {
     if (!user) {
       navigate(`/login?redirect=/movie/${movie?.id}/screenings`);
     } else {
       navigate(`/movie/${movie?.id}/screenings`);
+    }
+  };
+
+  const handleToggleWatchlist = async () => {
+    if (!user) return navigate(`/login?redirect=${location.pathname}`);
+    if (!movie || !id) return;
+    try {
+      const newStatus = await toggleWatchlist(id, user.id, movie.title, movie.poster_url);
+      setIsWatchlisted(newStatus);
+    } catch (err) {
+      alert("Error al actualizar tu lista.");
     }
   };
 
@@ -222,7 +243,7 @@ export const MovieDetailPage = () => {
 
             <p style={{ fontSize: '1.1rem', lineHeight: '1.7', color: '#9ca3af', marginBottom: '3rem', maxWidth: '800px' }}>{movie.synopsis}</p>
             
-            <div style={{ display: 'flex', gap: '1.5rem', maxWidth: '500px' }}>
+            <div style={{ display: 'flex', gap: '1.5rem', maxWidth: '500px', flexWrap: 'wrap' }}>
               <button 
                 onClick={handleBuyTicket}
                 style={{ flex: 1, backgroundColor: '#f4e951', color: '#0f1115', padding: '1.2rem', borderRadius: '8px', border: 'none', fontWeight: '900', fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer', transition: 'background-color 0.2s', boxShadow: '0 10px 20px rgba(244,233,81,0.2)' }}
@@ -233,12 +254,13 @@ export const MovieDetailPage = () => {
               </button>
 
               <button 
-                onClick={() => alert('Próximamente: Funcionalidad de Favoritos')}
-                style={{ flex: 1, backgroundColor: 'transparent', color: '#ffffff', padding: '1.2rem', borderRadius: '8px', border: '1px solid #4b5563', fontWeight: '700', fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseOver={(e) => { e.currentTarget.style.borderColor = '#ffffff'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; }}
-                onMouseOut={(e) => { e.currentTarget.style.borderColor = '#4b5563'; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                onClick={handleToggleWatchlist}
+                style={{ flex: 1, backgroundColor: isWatchlisted ? '#f4e951' : 'transparent', color: isWatchlisted ? '#0f1115' : '#ffffff', padding: '1.2rem', borderRadius: '8px', border: isWatchlisted ? 'none' : '1px solid #4b5563', fontWeight: '700', fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
               >
-                Añadir a Mi Lista
+                <svg width="20" height="20" viewBox="0 0 24 24" fill={isWatchlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+                {isWatchlisted ? 'En Mi Lista' : 'Añadir a Mi Lista'}
               </button>
             </div>
 
@@ -356,9 +378,9 @@ export const MovieDetailPage = () => {
           <div>
             <div style={{ display: 'flex', gap: '0.8rem', overflowX: 'auto', paddingBottom: '1rem', borderBottom: '1px solid #262932', marginBottom: '2rem', scrollbarWidth: 'none' }}>
               <button onClick={() => setFilter('ALL')} style={{ background: filter === 'ALL' ? '#f4e951' : '#171a21', color: filter === 'ALL' ? '#000' : '#9ca3af', border: filter === 'ALL' ? 'none' : '1px solid #374151', padding: '0.7rem 1.5rem', borderRadius: '30px', fontWeight: '800', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}>Todas ({reviewsData?.reviews.length || 0})</button>
-              <button onClick={() => setFilter('POSITIVE')} style={{ background: filter === 'POSITIVE' ? '#f4e951' : '#171a21', color: filter === 'POSITIVE' ? '#000' : '#9ca3af', border: filter === 'POSITIVE' ? 'none' : '1px solid #374151', padding: '0.7rem 1.5rem', borderRadius: '30px', fontWeight: '800', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}>Positivas ({reviewsData?.reviews.filter(r => r.score >= 4).length || 0})</button>
-              <button onClick={() => setFilter('NEUTRAL')} style={{ background: filter === 'NEUTRAL' ? '#f4e951' : '#171a21', color: filter === 'NEUTRAL' ? '#000' : '#9ca3af', border: filter === 'NEUTRAL' ? 'none' : '1px solid #374151', padding: '0.7rem 1.5rem', borderRadius: '30px', fontWeight: '800', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}>Neutrales ({reviewsData?.reviews.filter(r => r.score === 3).length || 0})</button>
-              <button onClick={() => setFilter('NEGATIVE')} style={{ background: filter === 'NEGATIVE' ? '#f4e951' : '#171a21', color: filter === 'NEGATIVE' ? '#000' : '#9ca3af', border: filter === 'NEGATIVE' ? 'none' : '1px solid #374151', padding: '0.7rem 1.5rem', borderRadius: '30px', fontWeight: '800', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}>Negativas ({reviewsData?.reviews.filter(r => r.score <= 2).length || 0})</button>
+              <button onClick={() => setFilter('POSITIVE')} style={{ background: filter === 'POSITIVE' ? '#f4e951' : '#171a21', color: filter === 'POSITIVE' ? '#000' : '#9ca3af', border: filter === 'POSITIVE' ? 'none' : '1px solid #374151', padding: '0.7rem 1.5rem', borderRadius: '30px', fontWeight: '800', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}>Positivas ({reviewsData?.stats.positive || 0})</button>
+              <button onClick={() => setFilter('NEUTRAL')} style={{ background: filter === 'NEUTRAL' ? '#f4e951' : '#171a21', color: filter === 'NEUTRAL' ? '#000' : '#9ca3af', border: filter === 'NEUTRAL' ? 'none' : '1px solid #374151', padding: '0.7rem 1.5rem', borderRadius: '30px', fontWeight: '800', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}>Neutrales ({reviewsData?.stats.neutral || 0})</button>
+              <button onClick={() => setFilter('NEGATIVE')} style={{ background: filter === 'NEGATIVE' ? '#f4e951' : '#171a21', color: filter === 'NEGATIVE' ? '#000' : '#9ca3af', border: filter === 'NEGATIVE' ? 'none' : '1px solid #374151', padding: '0.7rem 1.5rem', borderRadius: '30px', fontWeight: '800', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}>Negativas ({reviewsData?.stats.negative || 0})</button>
             </div>
 
             {filteredReviews.length === 0 ? (
