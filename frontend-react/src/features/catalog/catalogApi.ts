@@ -44,7 +44,7 @@ export interface Seat {
   row: string;
   col: number;
   type: 'normal' | 'vip' | 'wheelchair' | 'corridor';
-  status: 'available' | 'locked' | 'sold';
+  status: 'available' | 'locked' | 'locked_by_me' | 'sold'; 
 }
 
 export interface ScreeningSeatsResponse {
@@ -62,6 +62,7 @@ export interface ScreeningSeatsResponse {
   };
   ticket_types: TicketType[];
   seats: Seat[];
+  active_lock_ttl?: number;
 }
 
 export interface MovieScreeningsResponse {
@@ -111,14 +112,23 @@ export const fetchMovieScreenings = async (id: string): Promise<MovieScreeningsR
   return response.data;
 };
 
-export const fetchScreeningSeats = async (screeningId: string): Promise<ScreeningSeatsResponse> => {
-  const response = await apiClient.get<ScreeningSeatsResponse>(`/api/v1/catalog/screenings/${screeningId}/seats`);
-  return response.data; 
+export const fetchScreeningSeats = async (screeningId: string, userId?: string): Promise<ScreeningSeatsResponse> => {
+  const params = userId ? { user_id: userId } : {};
+  const response = await apiClient.get<ScreeningSeatsResponse>(`/api/v1/catalog/screenings/${screeningId}/seats`, { params });
+  return response.data;
 };
 
-export const lockScreeningSeats = async (screeningId: string, seatIds: string[]) => {
+export const lockScreeningSeats = async (screeningId: string, seatIds: string[], userId: string) => {
   const response = await apiClient.post(`/api/v1/catalog/screenings/${screeningId}/lock-seats`, {
-    seat_ids: seatIds
+    seat_ids: seatIds,
+    user_id: userId 
+  });
+  return response.data;
+};
+
+export const unlockScreeningSeats = async (screeningId: string, userId: string) => {
+  const response = await apiClient.delete(`/api/v1/catalog/screenings/${screeningId}/lock-seats`, {
+    params: { user_id: userId }
   });
   return response.data;
 };

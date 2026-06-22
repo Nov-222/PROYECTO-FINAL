@@ -1,24 +1,39 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { fetchScreeningSeats, lockScreeningSeats, type Seat, type ScreeningSeatsResponse } from '../features/catalog/catalogApi';
+import { fetchScreeningSeats, lockScreeningSeats, unlockScreeningSeats, type Seat, type ScreeningSeatsResponse } from '../features/catalog/catalogApi';
+import { useAuthStore } from '../shared/store/authStore';
 
 export const SeatSelectionPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuthStore(); 
 
   const [data, setData] = useState<ScreeningSeatsResponse | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
+  const [lockTimer, setLockTimer] = useState<number | null>(null);
 
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
   const loadSeatsData = async () => {
     try {
       if (!id) return;
-      const res = await fetchScreeningSeats(id);
+      const res = await fetchScreeningSeats(id, user?.id);
       setData(res);
+
+      const myLockedSeats = res.seats.filter(s => s.status === 'locked_by_me');
+      
+      if (myLockedSeats.length > 0) {
+        setSelectedSeats(myLockedSeats);
+        if (res.active_lock_ttl) {
+          setLockTimer(res.active_lock_ttl);
+        }
+      } else {
+        setSelectedSeats([]);
+        setLockTimer(null);
+      }
     } catch (err: any) {
       setErrorMsg(err.response?.data?.detail || 'Error al cargar el mapa de butacas.');
     } finally {
@@ -26,7 +41,7 @@ export const SeatSelectionPage = () => {
     }
   };
 
-  useEffect(() => { loadSeatsData(); }, [id]);
+  useEffect(() => { loadSeatsData(); }, [id, user]);
 
   const purchaseSummary = useMemo(() => {
     if (!data) return { items: [], totalTickets: 0, totalPrice: 0 };
@@ -45,10 +60,25 @@ export const SeatSelectionPage = () => {
       }
     });
 
+    if (totalTickets === 0 && selectedSeats.length > 0) {
+      totalTickets = selectedSeats.length; 
+    }
+
     return { items, totalTickets, totalPrice };
-  }, [data, searchParams]);
+  }, [data, searchParams, selectedSeats]);
+
+  useEffect(() => {
+    if (lockTimer === null || lockTimer <= 0) return;
+    const interval = setInterval(() => setLockTimer(t => (t ? t - 1 : 0)), 1000);
+    return () => clearInterval(interval);
+  }, [lockTimer]);
 
   const toggleSeat = (seat: Seat) => {
+    if (lockTimer && lockTimer > 0) {
+        alert("Ya tienes una reserva en curso. Utiliza el botón 'Cancelar Reserva' si deseas cambiar de asientos.");
+        return;
+    }
+
     if (seat.status !== 'available' || seat.type === 'corridor') return;
 
     const isSelected = selectedSeats.some(s => s.id === seat.id);
@@ -65,10 +95,15 @@ export const SeatSelectionPage = () => {
 
   const handleLockSeats = async () => {
     try {
+      if (!user) {
+        alert("Debes iniciar sesión para poder reservar butacas.");
+        return navigate('/login');
+      }
+
       setErrorMsg('');
       if (!id) return;
       
-      const res = await lockScreeningSeats(id, selectedSeats.map(s => s.id));
+      const res = await lockScreeningSeats(id, selectedSeats.map(s => s.id), user.id);
       
       sessionStorage.setItem('lockExpiration', (Date.now() + res.expires_in_seconds * 1000).toString());
       
@@ -78,7 +113,6 @@ export const SeatSelectionPage = () => {
     } catch (err: any) {
       if (err.response?.status === 409) {
         alert(err.response.data.detail);
-        setSelectedSeats([]);
         loadSeatsData(); 
       } else {
         setErrorMsg(err.response?.data?.detail || 'Error en la reserva.');
@@ -86,11 +120,32 @@ export const SeatSelectionPage = () => {
     }
   };
 
+  const handleCancelReservation = async () => {
+    if (!user || !id) return;
+    const confirm = window.confirm("¿Estás seguro que quieres cancelar tu reserva y liberar estos asientos?");
+    if (!confirm) return;
+    
+    try {
+        await unlockScreeningSeats(id, user.id);
+        sessionStorage.removeItem('lockExpiration');
+        loadSeatsData(); 
+    } catch (err) {
+        alert("Error de conexión al liberar asientos.");
+    }
+  };
+
+  const handleContinuePayment = () => {
+      const seatQuery = selectedSeats.map(s => s.id).join(',');
+      navigate(`/booking/${id}/payment?${searchParams.toString()}&seats=${seatQuery}`);
+  };
+
   if (isLoading) return <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f1115', color: '#f4e951', fontFamily: 'system-ui' }}>Cargando experiencia...</div>;
   if (!data) return <div style={{ height: '100vh', backgroundColor: '#0f1115' }}>Error cargando datos.</div>;
 
   const rows = Array.from(new Set(data.seats.map(s => s.row))).sort();
   const screenDate = new Date(data.screening.start_time);
+  
+  const hasActiveReservation = lockTimer !== null && lockTimer > 0 && selectedSeats.length > 0;
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh', color: '#ffffff', fontFamily: '"Inter", system-ui, sans-serif', overflow: 'hidden' }}>
@@ -102,6 +157,23 @@ export const SeatSelectionPage = () => {
 
       <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '2rem' }}>
         
+        {hasActiveReservation && (
+           <div style={{ backgroundColor: 'rgba(244, 233, 81, 0.1)', border: '1px solid #f4e951', color: '#fff', padding: '1rem 2rem', borderRadius: '12px', marginBottom: '2rem', display: 'flex', flexWrap: 'wrap', gap: '1.5rem', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 10px 30px rgba(244, 233, 81, 0.1)' }}>
+              <div>
+                 <h3 style={{ margin: 0, color: '#f4e951', fontSize: '1.2rem', fontWeight: '900' }}>¡Tienes una reserva pendiente!</h3>
+                 <p style={{ margin: '0.2rem 0 0', color: '#d1d5db', fontSize: '0.9rem' }}>El sistema ha recuperado tus asientos. Completa el pago antes de que expire la reserva.</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                 <strong style={{ fontSize: '2.2rem', color: '#f4e951', fontFamily: 'monospace', letterSpacing: '2px' }}>
+                    {Math.floor(lockTimer / 60)}:{(lockTimer % 60).toString().padStart(2, '0')}
+                 </strong>
+                 <button onClick={handleCancelReservation} style={{ backgroundColor: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '0.7rem 1.2rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', textTransform: 'uppercase', transition: 'all 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                   Cancelar Reserva
+                 </button>
+              </div>
+           </div>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '2rem', marginBottom: '3rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#f4e951', fontWeight: 'bold' }}>
             <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#f4e951', marginBottom: '0.5rem', boxShadow: '0 0 10px #f4e951' }}></div>
@@ -162,18 +234,18 @@ export const SeatSelectionPage = () => {
                       
                       let bgColor = '#e5e7eb'; 
                       let fontColor = '#000000';
-                      let cursor = 'pointer';
+                      let cursor = hasActiveReservation ? 'not-allowed' : 'pointer';
                       let borderColor = 'transparent';
 
-                      if (seat.status === 'locked') {
-                        bgColor = '#14532d';
+                      if (seat.status === 'locked' && !isSelected) {
+                        bgColor = '#14532d'; 
                         fontColor = '#ffffff';
                         cursor = 'not-allowed';
                       } else if (seat.status === 'sold') {
                         bgColor = '#374151'; 
                         fontColor = '#9ca3af';
                         cursor = 'not-allowed';
-                      } else if (isSelected) {
+                      } else if (isSelected || seat.status === 'locked_by_me') {
                         bgColor = '#f4e951'; 
                         fontColor = '#000000';
                         borderColor = '#ca8a04';
@@ -187,7 +259,8 @@ export const SeatSelectionPage = () => {
                           style={{
                             width: '32px', height: '32px', backgroundColor: bgColor, border: borderColor !== 'transparent' ? `2px solid ${borderColor}` : 'none',
                             borderRadius: '6px 6px 3px 3px', cursor: cursor, display: 'flex', justifyContent: 'center', alignItems: 'center',
-                            color: fontColor, fontWeight: '800', fontSize: '0.75rem', transition: 'all 0.15s', boxShadow: 'inset 0 -3px 0 rgba(0,0,0,0.15)'
+                            color: fontColor, fontWeight: '800', fontSize: '0.75rem', transition: 'all 0.15s', boxShadow: 'inset 0 -3px 0 rgba(0,0,0,0.15)',
+                            opacity: (hasActiveReservation && !isSelected) ? 0.4 : 1 // Atenúa los no seleccionados si la persona ya está en modo "recuperación"
                           }}
                         >
                           {(seat.status !== 'available' && !isSelected) ? '' : seat.col}
@@ -201,11 +274,11 @@ export const SeatSelectionPage = () => {
               ))}
             </div>
 
-            <div style={{ display: 'flex', gap: '2rem', marginTop: '4rem', color: '#9ca3af', fontSize: '0.85rem', fontWeight: '600' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginTop: '4rem', color: '#9ca3af', fontSize: '0.85rem', fontWeight: '600', justifyContent: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '14px', height: '14px', backgroundColor: '#e5e7eb', borderRadius: '3px' }}></div> Disponible</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '14px', height: '14px', backgroundColor: '#14532d', borderRadius: '3px' }}></div> Reservado</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '14px', height: '14px', backgroundColor: '#f4e951', borderRadius: '3px' }}></div> Seleccionado</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '14px', height: '14px', backgroundColor: '#374151', borderRadius: '3px' }}></div> No disponible</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '14px', height: '14px', backgroundColor: '#14532d', borderRadius: '3px' }}></div> En proceso de compra (Otro)</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '14px', height: '14px', backgroundColor: '#f4e951', borderRadius: '3px' }}></div> Tu Reserva</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '14px', height: '14px', backgroundColor: '#374151', borderRadius: '3px' }}></div> Ocupado</div>
             </div>
           </div>
 
@@ -245,24 +318,33 @@ export const SeatSelectionPage = () => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <button 
-                onClick={handleLockSeats}
-                disabled={selectedSeats.length !== purchaseSummary.totalTickets}
-                style={{
-                  width: '100%', padding: '1.1rem', borderRadius: '8px', border: 'none', fontWeight: '900', fontSize: '1.05rem', textTransform: 'uppercase', letterSpacing: '1px',
-                  backgroundColor: selectedSeats.length === purchaseSummary.totalTickets ? '#f4e951' : '#374151',
-                  color: selectedSeats.length === purchaseSummary.totalTickets ? '#000000' : '#9ca3af',
-                  cursor: selectedSeats.length === purchaseSummary.totalTickets ? 'pointer' : 'not-allowed',
-                  transition: 'background-color 0.2s'
-                }}
-              >
-                Continuar
-              </button>
+              {hasActiveReservation ? (
+                 <button 
+                  onClick={handleContinuePayment}
+                  style={{ width: '100%', padding: '1.1rem', borderRadius: '8px', border: 'none', fontWeight: '900', fontSize: '1.05rem', textTransform: 'uppercase', letterSpacing: '1px', backgroundColor: '#f4e951', color: '#000000', cursor: 'pointer', transition: 'background-color 0.2s' }}>
+                  Retomar Pago
+                </button>
+              ) : (
+                <button 
+                  onClick={handleLockSeats}
+                  disabled={selectedSeats.length !== purchaseSummary.totalTickets}
+                  style={{
+                    width: '100%', padding: '1.1rem', borderRadius: '8px', border: 'none', fontWeight: '900', fontSize: '1.05rem', textTransform: 'uppercase', letterSpacing: '1px',
+                    backgroundColor: selectedSeats.length === purchaseSummary.totalTickets ? '#f4e951' : '#374151',
+                    color: selectedSeats.length === purchaseSummary.totalTickets ? '#000000' : '#9ca3af',
+                    cursor: selectedSeats.length === purchaseSummary.totalTickets ? 'pointer' : 'not-allowed',
+                    transition: 'background-color 0.2s'
+                  }}
+                >
+                  Continuar
+                </button>
+              )}
+              
               <button 
                 onClick={() => navigate(-1)}
                 style={{ width: '100%', padding: '1.1rem', borderRadius: '8px', backgroundColor: 'transparent', border: '1px solid #4b5563', color: '#ffffff', fontWeight: '700', fontSize: '1rem', textTransform: 'uppercase', cursor: 'pointer' }}
               >
-                Cancelar
+                {hasActiveReservation ? 'Volver' : 'Cancelar'}
               </button>
             </div>
 

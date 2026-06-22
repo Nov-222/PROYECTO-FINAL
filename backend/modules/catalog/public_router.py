@@ -21,6 +21,7 @@ redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=Tr
 
 class LockSeatsRequest(BaseModel):
     seat_ids: List[str]
+    user_id: str
 
 class PurchaseRequest(BaseModel):
     seat_ids: List[str]
@@ -267,7 +268,7 @@ def get_movie_screenings(movie_id: str, db: Session = Depends(get_business_db)):
         raise HTTPException(status_code=500, detail="Error interno al cargar los horarios")
     
 @router.get("/screenings/{screening_id}/seats")
-def get_screening_seats(screening_id: str, db: Session = Depends(get_business_db)):
+def get_screening_seats(screening_id: str, user_id: Optional[str] = Query(None), db: Session = Depends(get_business_db)):
     try:
         scr_query = text("""
             SELECT s.room_id, s.start_time, m.id as movie_id, m.title, m.poster_url, m.duration_minutes, m.rating_classification, r.name as room_name
@@ -293,7 +294,22 @@ def get_screening_seats(screening_id: str, db: Session = Depends(get_business_db
         seats = db.execute(seats_query, {"rid": scr[0]}).fetchall()
 
         locked_keys = redis_client.keys(f"lock:{screening_id}:*")
-        locked_seat_ids = [k.split(":")[-1] for k in locked_keys]
+        
+        locked_seat_ids = []
+        my_locked_seat_ids = []
+        active_ttl = 0
+        
+        for key in locked_keys:
+            sid = key.split(":")[-1]
+            lock_owner = redis_client.get(key)
+            
+            if user_id and lock_owner == user_id:
+                my_locked_seat_ids.append(sid)
+                ttl = redis_client.ttl(key)
+                if ttl > active_ttl:
+                    active_ttl = ttl 
+            else:
+                locked_seat_ids.append(sid)
 
         sold_query = text("""
             SELECT CAST(seat_id AS VARCHAR) 
@@ -309,6 +325,8 @@ def get_screening_seats(screening_id: str, db: Session = Depends(get_business_db
             sid = s[0]
             if sid in db_sold_ids:
                 status = "sold"
+            elif sid in my_locked_seat_ids:
+                status = "locked_by_me"
             elif sid in locked_seat_ids:
                 status = "locked"
             else:
@@ -325,26 +343,22 @@ def get_screening_seats(screening_id: str, db: Session = Depends(get_business_db
 
         return {
             "movie": {
-                "id": scr[2],
-                "title": scr[3],
-                "poster_url": scr[4],
-                "duration_minutes": scr[5],
-                "rating_classification": scr[6]
+                "id": scr[2], "title": scr[3], "poster_url": scr[4],
+                "duration_minutes": scr[5], "rating_classification": scr[6]
             },
             "screening": {
-                "id": screening_id,
-                "start_time": scr[1].isoformat(),
-                "room_name": scr[7]
+                "id": screening_id, "start_time": scr[1].isoformat(), "room_name": scr[7]
             },
             "ticket_types": ticket_types,
-            "seats": result_seats
+            "seats": result_seats,
+            "active_lock_ttl": active_ttl if active_ttl > 0 else None 
         }
     except HTTPException:
         raise
     except Exception as e:
         print(f"[Error] Seats: {e}")
         raise HTTPException(500, "Error interno al cargar la sala.")
-
+    
 @router.post("/screenings/{screening_id}/lock-seats")
 def lock_seats(screening_id: str, req: LockSeatsRequest, db: Session = Depends(get_business_db)):
     if len(req.seat_ids) > 8:
@@ -354,19 +368,28 @@ def lock_seats(screening_id: str, req: LockSeatsRequest, db: Session = Depends(g
     
     for sid in req.seat_ids:
         key = f"lock:{screening_id}:{sid}"
-        acquired = redis_client.set(key, "user_id_mock", nx=True, ex=600)
+        acquired = redis_client.set(key, req.user_id, nx=True, ex=600)
         
         if acquired:
             locked_acquired.append(key)
         else:
             for lk in locked_acquired:
                 redis_client.delete(lk)
-            raise HTTPException(409, "Una o más butacas acaban de ser reservadas por otro usuario. Selecciona otras.")
+            raise HTTPException(409, "Una o más butacas acaban de ser reservadas por otro usuario.")
 
-    return {
-        "message": "Butacas bloqueadas con éxito.",
-        "expires_in_seconds": 600
-    }
+    return {"message": "Butacas bloqueadas con éxito.", "expires_in_seconds": 600}
+
+@router.delete("/screenings/{screening_id}/lock-seats")
+def unlock_seats(screening_id: str, user_id: str = Query(...)):
+    locked_keys = redis_client.keys(f"lock:{screening_id}:*")
+    freed_count = 0
+    
+    for key in locked_keys:
+        if redis_client.get(key) == user_id:
+            redis_client.delete(key)
+            freed_count += 1
+            
+    return {"message": f"{freed_count} butacas liberadas."}
 
 @router.post("/screenings/{screening_id}/purchase")
 def process_purchase(screening_id: str, req: PurchaseRequest, db: Session = Depends(get_business_db)):    
