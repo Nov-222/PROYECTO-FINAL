@@ -7,6 +7,10 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str
     GOOGLE_CLIENT_ID: str = "" 
+    
+    MONGO_URL: str = "mongodb://mongodb:27017"
+    MONGO_DB: str = "cinemaplus_ugc"
+    KAFKA_BOOTSTRAP_SERVERS: str = "kafka:29092"
 
     class Config:
         env_file = "../.env" 

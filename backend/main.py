@@ -1,15 +1,42 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware 
+from contextlib import asynccontextmanager
+
 from core.database import auth_engine, AuthBase
 from modules.auth.router import router as auth_router
 from modules.catalog.public_router import router as catalog_public_router 
+
+from core.mongo_db import db as mongo_db_client
+from motor.motor_asyncio import AsyncIOMotorClient
+from confluent_kafka import Producer
+from core.config import settings
+
+kafka_producer = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    mongo_db_client.client = AsyncIOMotorClient(settings.MONGO_URL)
+    
+    global kafka_producer
+    try:
+        kafka_producer = Producer({'bootstrap.servers': settings.KAFKA_BOOTSTRAP_SERVERS})
+        print("Kafka Producer conectado exitosamente.")
+    except Exception as e:
+        print(f"Advertencia: Kafka no está listo. {e}")
+        
+    yield 
+    
+    mongo_db_client.client.close()
+    if kafka_producer:
+        kafka_producer.flush() 
 
 AuthBase.metadata.create_all(bind=auth_engine)
 
 app = FastAPI(
     title="CinemaPlus Backend",
-    description="Monolito Modular - Plataforma de Servicios"
+    description="Monolito Modular - Plataforma de Servicios",
+    lifespan=lifespan 
 )
 
 app.add_middleware(

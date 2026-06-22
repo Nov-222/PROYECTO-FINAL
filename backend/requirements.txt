@@ -17,3 +17,5 @@ pytest-env
 google-auth==2.30.0
 requests==2.31.0
 django-cors-headers==4.3.1
+motor==3.3.2
+confluent-kafka==2.3.0
