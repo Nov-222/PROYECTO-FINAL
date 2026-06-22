@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Date, Boolean, DateTime, ARRAY, Integer
+from sqlalchemy import Column, String, Date, Boolean, DateTime, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime, timezone
 from core.database import AuthBase
@@ -14,7 +14,8 @@ class User(AuthBase):
     birth_date = Column(Date, nullable=False) 
     role = Column(String, default="user", nullable=False)
     is_verified = Column(Boolean, default=False)
-    genre_preferences = Column(ARRAY(Integer), default=[])
+    
+    genre_preferences = Column(JSON, default=list) 
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

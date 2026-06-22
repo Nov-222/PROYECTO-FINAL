@@ -16,6 +16,8 @@ const SeatSelectionPage = React.lazy(() => import('./pages/SeatSelectionPage').t
 const PaymentPage = React.lazy(() => import('./pages/PaymentPage').then(module => ({ default: module.PaymentPage })));
 const TicketPage = React.lazy(() => import('./pages/TicketPage').then(module => ({ default: module.TicketPage })));
 const OrdersHistoryPage = React.lazy(() => import('./pages/OrdersHistoryPage').then(module => ({ default: module.OrdersHistoryPage })));
+const OnboardingPreferencesPage = React.lazy(() => import('./pages/OnboardingPreferencesPage').then(m => ({ default: m.OnboardingPreferencesPage })));
+
 const GlobalLoader = () => (
   <div style={{ minHeight: '100vh', backgroundColor: '#0f1115', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#f4e951', fontFamily: 'system-ui', fontSize: '1.2rem', fontWeight: 'bold', letterSpacing: '2px' }}>
     CARGANDO...
@@ -36,6 +38,7 @@ function App() {
             <Route path="/login" element={<LoginForm />} />
             <Route path="/forgot-password" element={<ForgotPasswordForm />} />
             <Route path="/reset-password" element={<ResetPasswordForm />} />
+            <Route path="/onboarding/preferences" element={<OnboardingPreferencesPage />} />
             
             <Route element={<MainLayout />}>
               <Route path="/home" element={<HomePage />} />

@@ -73,7 +73,7 @@ export const RegisterForm = () => {
         loginAction(response.data.user, response.data.access_token);
       }
 
-      window.location.href = '/home';
+      window.location.href = '/onboarding/preferences';
     } catch (error: any) {
       if (error.response?.status === 409) {
         setServerError('Este correo electrónico ya está registrado. Ingresa a tu cuenta o usa "¿Olvidaste tu contraseña?"');

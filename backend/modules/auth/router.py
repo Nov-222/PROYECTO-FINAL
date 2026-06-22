@@ -6,6 +6,7 @@ import bcrypt
 from jose import jwt, JWTError
 from uuid import UUID
 import json
+import redis
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
@@ -111,6 +112,15 @@ class PasswordResetConfirm(BaseModel):
             raise ValueError('La contraseña debe tener al menos 8 caracteres')
         return v
 
+class PreferencesRequest(BaseModel):
+    genres: list[str]
+
+    @field_validator('genres')
+    @classmethod
+    def check_max_genres(cls, v):
+        if len(v) > 5:
+            raise ValueError("Podés seleccionar hasta 5 géneros")
+        return v
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register_user(request: UserRegisterRequest, response: Response, db: Session = Depends(get_auth_db)):
@@ -280,3 +290,20 @@ def confirm_password_reset(request: PasswordResetConfirm, db: Session = Depends(
         return {"message": "Contraseña actualizada correctamente"}
     except JWTError:
         raise HTTPException(status_code=400, detail="Este enlace ya no es válido. Solicitá uno nuevo.")
+
+@router.put("/users/{user_id}/preferences")
+def update_preferences(user_id: str, req: PreferencesRequest, db: Session = Depends(get_auth_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    user.genre_preferences = req.genres
+    db.commit()
+
+    try:
+        redis_client = redis.Redis(host="redis", port=6379, db=0, decode_responses=True)
+        redis_client.delete(f"recs:{user_id}")
+    except Exception as e:
+        print(f"Error limpiando Redis: {e}")
+
+    return {"message": "Preferencias guardadas exitosamente", "genres": user.genre_preferences}
