@@ -255,3 +255,23 @@ export const fetchActivityHistory = async (userId: string): Promise<ActivityItem
   const response = await apiClient.get(`/api/v1/ugc/users/${userId}/activity`);
   return response.data;
 };
+
+export interface RecommendationItem {
+  id: string;
+  title: string;
+  poster_url: string;
+  reason: string;
+}
+
+export interface RecommendationResponse {
+  is_personalized: boolean;
+  title: string;
+  subtitle: string;
+  items: RecommendationItem[];
+}
+
+export const fetchRecommendations = async (userId?: string): Promise<RecommendationResponse> => {
+  const params = userId ? { user_id: userId } : {};
+  const response = await apiClient.get<RecommendationResponse>('/api/v1/recommendations/', { params });
+  return response.data;
+};
