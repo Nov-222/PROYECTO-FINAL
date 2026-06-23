@@ -14,15 +14,15 @@ REDIS_HOST = "redis"
 redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
 
 @router.get("/")
-async def get_recommendations(user_id: Optional[str] = None, mongo_db = Depends(get_mongo_db), pg_db: Session = Depends(get_business_db)):    
+async def get_recommendations(user_id: Optional[str] = None, mongo_db = Depends(get_mongo_db), pg_db: Session = Depends(get_business_db)):
     if user_id:
         cached_recs = redis_client.get(f"recs:{user_id}")
         if cached_recs:
             return json.loads(cached_recs)
 
-    movies_query = text("SELECT id, title, poster_url FROM catalog_movie")
+    movies_query = text("SELECT id, title, poster_url, genres FROM catalog_movie")
     all_movies = pg_db.execute(movies_query).fetchall()
-    movie_dict = {str(m[0]): {"id": str(m[0]), "title": m[1], "poster_url": m[2]} for m in all_movies}
+    movie_dict = {str(m[0]): {"id": str(m[0]), "title": m[1], "poster_url": m[2], "genres": m[3]} for m in all_movies}
 
     purchased_ids = set()
     
@@ -50,8 +50,15 @@ async def get_recommendations(user_id: Optional[str] = None, mongo_db = Depends(
     if user_id:
         best_rating = await mongo_db.ratings.find_one({"user_id": user_id, "score": {"$gte": 4}}, sort=[("score", -1)])
         last_watchlist = await mongo_db.watchlist.find_one({"user_id": user_id}, sort=[("added_at", -1)])
+        
+        auth_query = text("SELECT genre_preferences FROM auth_users WHERE id = :uid")
+        try:
+            user_prefs_row = pg_db.execute(auth_query, {"uid": user_id}).fetchone()
+            user_prefs = user_prefs_row[0] if user_prefs_row and user_prefs_row[0] else []
+        except:
+            user_prefs = []
 
-        if best_rating or last_watchlist:
+        if best_rating or last_watchlist or user_prefs:
             is_personalized = True
             message = "Recomendadas para vos"
             subtitle = ""
@@ -60,16 +67,28 @@ async def get_recommendations(user_id: Optional[str] = None, mongo_db = Depends(
                 if best_rating and m["id"] == best_rating["movie_id"]: continue
                 if last_watchlist and m["id"] == last_watchlist["movie_id"]: continue
 
+                reason = ""
+                
                 if best_rating:
-                    trigger_title = movie_dict.get(best_rating["movie_id"], {}).get("title", "una película")
-                    reason = f"Porque calificaste '{trigger_title}' con {best_rating['score']}★"
-                else:
-                    reason = f"Porque agregaste '{last_watchlist['movie_title']}' a tu lista"
+                    trigger_movie = movie_dict.get(best_rating["movie_id"])
+                    if trigger_movie and m["genres"] and set(m["genres"]).intersection(set(trigger_movie["genres"])):
+                        shared_genre = list(set(m["genres"]).intersection(set(trigger_movie["genres"])))[0]
+                        reason = f"Esta película es de {shared_genre}, un género que calificaste con {best_rating['score']} estrellas en '{trigger_movie['title']}'."
+                
+                if not reason and last_watchlist:
+                     reason = f"Seleccionada especialmente basándonos en tu lista de 'Quiero ver'."
+                
+                if not reason and user_prefs and m["genres"] and set(m["genres"]).intersection(set(user_prefs)):
+                     shared_genre = list(set(m["genres"]).intersection(set(user_prefs)))[0]
+                     reason = f"Porque marcaste '{shared_genre}' como uno de tus géneros favoritos."
 
-                recs.append({**m, "reason": reason})
-                if len(recs) == 5: break 
+                if reason:
+                    clean_movie = {"id": m["id"], "title": m["title"], "poster_url": m["poster_url"], "reason": reason}
+                    recs.append(clean_movie)
+                    
+                if len(recs) == 5: break
 
-    if not is_personalized:
+    if not is_personalized or len(recs) < 5:
         try:
             trending_query = text("""
                 SELECT m.id, COUNT(o.id) as sales
@@ -82,11 +101,14 @@ async def get_recommendations(user_id: Optional[str] = None, mongo_db = Depends(
             trend_ids = [str(r[0]) for r in trend_rows]
             
             for tid in trend_ids:
-                if tid in movie_dict and tid not in purchased_ids:
-                    recs.append({**movie_dict[tid], "reason": "Tendencia esta semana"})
+                if len(recs) == 5: break
+                if tid in movie_dict and tid not in purchased_ids and not any(r.get('id') == tid for r in recs):
+                    recs.append({"id": movie_dict[tid]["id"], "title": movie_dict[tid]["title"], "poster_url": movie_dict[tid]["poster_url"], "reason": "Esta película es tendencia por su gran volumen de ventas esta semana."})
         except Exception:
-            for m in available_movies[:10]:
-                recs.append({**m, "reason": "Tendencia esta semana"})
+            for m in available_movies:
+                if len(recs) == 5: break
+                if not any(r.get('id') == m["id"] for r in recs):
+                     recs.append({"id": m["id"], "title": m["title"], "poster_url": m["poster_url"], "reason": "Una de las películas más destacadas actualmente en cartelera."})
 
     response = {
         "is_personalized": is_personalized,

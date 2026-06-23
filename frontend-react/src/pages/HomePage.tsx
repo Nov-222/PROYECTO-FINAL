@@ -16,6 +16,14 @@ export const HomePage = () => {
       .catch(err => console.error("Error al cargar recomendaciones:", err));
   }, [user]);
 
+  const getShortReason = (longReason: string) => {
+    if (longReason.includes('género que calificaste')) return '⭐ Por tu actividad';
+    if (longReason.includes('Quiero ver')) return '🎬 Por tu Watchlist';
+    if (longReason.includes('géneros favoritos')) return '🎭 Porque te gusta';
+    if (longReason.includes('tendencia')) return '🔥 Tendencia';
+    return 'Recomendada';
+  };
+
   return (
     <div style={{ backgroundColor: '#0f1115', minHeight: '100vh', paddingBottom: '4rem' }}>
       <FeaturedHero />
@@ -36,6 +44,7 @@ export const HomePage = () => {
               <div 
                 key={`rec-${item.id}`} 
                 onClick={() => navigate(`/movie/${item.id}`)} 
+                title={item.reason} 
                 style={{ minWidth: '220px', width: '220px', cursor: 'pointer', position: 'relative', transition: 'transform 0.2s' }}
                 onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                 onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -50,7 +59,7 @@ export const HomePage = () => {
                   backgroundColor: recs.is_personalized ? 'rgba(244, 233, 81, 0.95)' : 'rgba(255, 255, 255, 0.9)', 
                   color: '#000', padding: '0.6rem 0.8rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '800', position: 'absolute', bottom: '-15px', left: '10px', right: '10px', textAlign: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', lineHeight: '1.2' 
                 }}>
-                  {item.reason}
+                  {getShortReason(item.reason)}
                 </div>
               </div>
             ))}
