@@ -80,11 +80,11 @@ WSGI_APPLICATION = 'core_admin.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'business_db',
+        'NAME': settings.DB_NAME,
         'USER': settings.DB_USER,
         'PASSWORD': settings.DB_PASSWORD,
-        'HOST': 'business-db', 
-        'PORT': '5432',
+        'HOST': settings.DB_HOST, 
+        'PORT': settings.DB_PORT,
     }
 }
 
