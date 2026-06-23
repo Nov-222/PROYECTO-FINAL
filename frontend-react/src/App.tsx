@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-
+import { ScrollToTop } from './shared/components/ScrollToTop';
 import { MainLayout } from './shared/components/layout/MainLayout';
 
 const RegisterForm = React.lazy(() => import('./features/auth/RegisterForm').then(module => ({ default: module.RegisterForm })));
@@ -30,6 +30,7 @@ function App() {
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <BrowserRouter>
+      <ScrollToTop />
         <Suspense fallback={<GlobalLoader />}>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
