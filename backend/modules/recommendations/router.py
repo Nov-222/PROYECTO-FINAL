@@ -4,15 +4,18 @@ from sqlalchemy import text
 import json
 import redis
 from typing import Optional
-
-# Importaciones locales
+from core.config import settings
 from core.mongo_db import get_mongo_db
 from core.database import get_business_db
 
 router = APIRouter(prefix="/recommendations", tags=["Recommendations"])
 
-REDIS_HOST = "redis"
-redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
+redis_client = redis.Redis(
+    host=settings.REDIS_HOST, 
+    port=settings.REDIS_PORT, 
+    db=0, 
+    decode_responses=True
+)
 
 @router.get("/")
 async def get_recommendations(user_id: Optional[str] = None, mongo_db = Depends(get_mongo_db), pg_db: Session = Depends(get_business_db)):

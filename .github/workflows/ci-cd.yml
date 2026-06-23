@@ -42,9 +42,9 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: ci_test_user
-          POSTGRES_PASSWORD: ci_test_password
-          POSTGRES_DB: ci_db
+          POSTGRES_USER: ${{ secrets.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
         ports:
           - 5432:5432
         options: >-
@@ -78,16 +78,16 @@ jobs:
         working-directory: ./backend
 
     env:
-      DB_USER: ci_test_user
-      DB_PASSWORD: ci_test_password
-      DB_NAME: ci_db
-      DB_HOST: localhost
-      DB_PORT: 5432
-      REDIS_HOST: localhost
-      MONGO_URI: mongodb://localhost:27017
-      KAFKA_BOOTSTRAP_SERVERS: localhost:9092
-      SECRET_KEY: test_secret_key_ci_cd_12345
-      ALGORITHM: HS256
+      DB_USER: ${{ secrets.DB_USER}}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD}}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      REDIS_HOST: ${{ secrets.REDIS_HOST }}
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+      KAFKA_BOOTSTRAP_SERVERS: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}
+      SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      ALGORITHM: ${{ secrets.ALGORITHM }}
       ENVIRONMENT: test
 
     steps:

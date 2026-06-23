@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     DB_USER: str
@@ -6,16 +6,21 @@ class Settings(BaseSettings):
     DB_NAME: str
     DB_HOST: str
     DB_PORT: int
+    
     ENVIRONMENT: str
     SECRET_KEY: str
     ALGORITHM: str
-    GOOGLE_CLIENT_ID: str = "" 
+    GOOGLE_CLIENT_ID: str = ""
     
-    MONGO_URL: str = "mongodb://mongodb:27017"
-    MONGO_DB: str = "cinemaplus_ugc"
-    KAFKA_BOOTSTRAP_SERVERS: str = "kafka:29092"
+    REDIS_HOST: str
+    MONGO_URL: str
+    MONGO_DB: str
+    KAFKA_BOOTSTRAP_SERVERS: str
 
-    class Config:
-        env_file = "../.env" 
+    model_config = SettingsConfigDict(
+        env_file="../.env",
+        env_file_encoding="utf-8",
+        extra="ignore" 
+    )
 
 settings = Settings()

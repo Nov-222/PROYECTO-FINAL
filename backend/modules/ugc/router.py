@@ -6,6 +6,7 @@ import redis
 from confluent_kafka import Producer
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from core.config import settings
 
 from core.mongo_db import get_mongo_db
 from core.database import get_business_db
@@ -13,8 +14,12 @@ from core.config import settings
 
 router = APIRouter(prefix="/ugc", tags=["User Generated Content"])
 
-REDIS_HOST = "redis"
-redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
+redis_client = redis.Redis(
+    host=settings.REDIS_HOST, 
+    port=settings.REDIS_PORT, 
+    db=0, 
+    decode_responses=True
+)
 
 def get_kafka_producer():
     return Producer({'bootstrap.servers': settings.KAFKA_BOOTSTRAP_SERVERS})
